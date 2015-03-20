@@ -17,13 +17,14 @@
 #  along with Mylar.  If not, see <http://www.gnu.org/licenses/>.
 
 import mylar
-from mylar import db, importer, search, PostProcessor, versioncheck, logger
+from mylar import db, mb, importer, search, PostProcessor, versioncheck, logger
 import lib.simplejson as simplejson
 import cherrypy
 import os
 import urllib2
 import cache
 import imghdr
+from operator import itemgetter
 from cherrypy.lib.static import serve_file
 
 cmd_list = ['getIndex', 'getComic', 'getUpcoming', 'getWanted', 'getHistory', 'getLogs',
@@ -188,6 +189,7 @@ class Api(object):
         newValueDict = {'Status': 'Active'}
         myDB.upsert("comics", newValueDict, controlValueDict)
 
+    # same as add comic?
     def _refreshComic(self, **kwargs):
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
@@ -203,6 +205,21 @@ class Api(object):
         return
 
     def _addComic(self, **kwargs):
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return
+        else:
+            self.id = kwargs['id']
+
+        try:
+            importer.addComictoDB(self.id)
+        except Exception, e:
+            self.data = e
+
+        return
+
+    # addRealsesByid does not exist can be deleted
+    def _addComic2(self, **kwargs):
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
@@ -245,17 +262,24 @@ class Api(object):
 
     def _forceSearch(self, **kwargs):
         search.searchforissue()
+        # start this in another thread?
 
     def _forceProcess(self, **kwargs):
         if 'nzb_name' not in kwargs:
-            self.data = 'Missing parameter: nzb_name'
-            return
+            self.nzb_name = 'Manual Run'
+            #self.data = 'Missing parameter: nzb_name'
+            #return
         else:
             self.nzb_name = kwargs['nzb_name']
 
         if 'nzb_folder' not in kwargs:
-            self.data = 'Missing parameter: nzb_folder'
-            return
+            # Lets see if we can use the default process folder
+            if mylar.CHECK_FOLDER:
+                self.nzb_folder = mylar.CHECK_FOLDER
+            else:
+                self.data = 'Missing parameter: nzb_folder'
+                return
+
         else:
             self.nzb_folder = kwargs['nzb_folder']
 
@@ -362,6 +386,30 @@ class Api(object):
                     self.img = image_path
                     return
                 else:
-                    self.data = 'Failed return a image'
+                    self.data = 'Failed to return a image'
             else:
                 self.data = 'Failed to return a image'
+
+    def _findComic(self, name, issue=None, type_=None, mode=None, explisit=None, serinfo=None):
+        # set defaults
+        if type_ is None:
+            type_ = 'comic'
+        if mode is None:
+            mode = 'series'
+
+        # Dont do shit if name is missing
+        if len(name) == 0:
+            return
+
+        if type_ == 'comic' and mode == 'series':
+            searchresults, explisit = mb.findComic(name, mode, issue=issue)
+        elif type_ == 'comic' and mode == 'pullseries':
+            pass
+        elif type_ == 'comic' and mode == 'want':
+            searchresults, explisit = mb.findComic(name, mode, issue)
+        elif type_ == 'story_arc':
+            searchresults, explisit = mb.findComic(name, mode, issue=None, explisit='explisit', type='story_arc')
+
+        searchresults = sorted(searchresults, key=itemgetter('comicyear', 'issues'), reverse=True)
+        self.data = searchresults
+

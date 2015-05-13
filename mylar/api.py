@@ -28,7 +28,7 @@ from operator import itemgetter
 from cherrypy.lib.static import serve_file
 
 cmd_list = ['getIndex', 'getComic', 'getUpcoming', 'getWanted', 'getHistory', 'getLogs',
-            'findComic', 'findIssue', 'addComic', 'delComic', 'pauseComic', 'resumeComic', 'refreshComic',
+            'findComic', 'addComic', 'delComic', 'pauseComic', 'resumeComic', 'refreshComic',
             'addIssue', 'queueIssue', 'unqueueIssue', 'forceSearch', 'forceProcess', 'getVersion', 'checkGithub',
             'shutdown', 'restart', 'update', 'getComicInfo', 'getIssueInfo', 'getArt']
 
